@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { deflateSync } from "zlib";
+import { deflateRawSync } from "zlib";
 import { decompressBuffer, CompressionType } from "../dst/api";
 
 describe("decompressBuffer", () => {
@@ -18,9 +18,18 @@ describe("decompressBuffer", () => {
   });
 
   it("should decompress ZLIB if type == ZLIB", () => {
-    const compressed = deflateSync(Buffer.from("hello world"));
+    const compressed = deflateRawSync(Buffer.from("hello world"));
     const decompressed = decompressBuffer(compressed, CompressionType.ZLIB);
     expect(decompressed.toString()).to.equal("hello world");
+  });
+
+  it("should handle large data when decompressing ZLIB", () => {
+    // Create a large buffer to test the fix for issue #1
+    const largeText = "hello world ".repeat(10000); // ~120KB of data
+    const compressed = deflateRawSync(Buffer.from(largeText));
+    const decompressed = decompressBuffer(compressed, CompressionType.ZLIB);
+    expect(decompressed.toString()).to.equal(largeText);
+    expect(decompressed.length).to.equal(Buffer.from(largeText).length);
   });
 
   it("should decompress internal compression if type == InternalCompression", () => {
