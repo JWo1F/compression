@@ -114,44 +114,30 @@ function internalDecompression(data: Buffer): Buffer {
  * @param buffer ZLIB compressed buffer
  */
 function decompressLargeZlib(buffer: Buffer): Buffer {
-  const inflate = createInflate();
-  const chunks: Buffer[] = [];
+  const zlib = require('zlib');
   
-  inflate.on('data', (chunk: Buffer) => {
-    chunks.push(chunk);
-  });
+  // Process in smaller chunks to avoid memory issues
+  const chunkSize = 16 * 1024 * 1024; // 16MB chunks
   
-  let error: Error | null = null;
-  inflate.on('error', (err: Error) => {
-    error = err;
-  });
-  
-  let finished = false;
-  inflate.on('end', () => {
-    finished = true;
-  });
-  
-  // Write data and close
-  inflate.write(buffer);
-  inflate.end();
-  
-  // Busy wait for completion
-  const start = Date.now();
-  while (!finished && !error && (Date.now() - start) < 30000) {
-    // Busy wait with tiny delay
-    const now = Date.now();
-    while (Date.now() - now < 1) {}
+  if (buffer.length <= chunkSize) {
+    // Small enough for regular sync methods
+    try {
+      return zlib.inflateSync(buffer);
+    } catch {
+      return zlib.unzipSync(buffer);
+    }
   }
   
-  if (error) {
-    throw error;
+  // For very large buffers, try with increased buffer size options
+  try {
+    return zlib.inflateSync(buffer, { chunkSize: chunkSize, windowBits: 15 });
+  } catch {
+    try {
+      return zlib.inflateSync(buffer, { chunkSize: chunkSize, windowBits: -15 });
+    } catch {
+      return zlib.unzipSync(buffer, { chunkSize: chunkSize });
+    }
   }
-  
-  if (!finished) {
-    throw new Error('Decompression did not complete');
-  }
-  
-  return Buffer.concat(chunks);
 }
 
 /**
