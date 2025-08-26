@@ -10,15 +10,7 @@ import CompressionType from "./compression-type";
 export default function decompressBuffer(buffer: Buffer, compression: CompressionType): Buffer {
   switch (compression) {
     case CompressionType.ZLIB:
-      // For large buffers, use streaming decompression
-      if (buffer.length > 50 * 1024 * 1024) { // 50MB threshold
-        return decompressLargeZlib(buffer);
-      }
-      try {
-        return inflateSync(buffer);
-      } catch {
-        return unzipSync(buffer);
-      }
+      return decompressLargeZlib(buffer);
     case CompressionType.InternalCompression:
       return internalDecompression(buffer)
     case CompressionType.Uncompressed:
