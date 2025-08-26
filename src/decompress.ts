@@ -1,4 +1,4 @@
-import { unzipSync } from "zlib";
+import { inflateSync } from "zlib";
 import CompressionType from "./compression-type";
 
 /**
@@ -10,7 +10,7 @@ import CompressionType from "./compression-type";
 export default function decompressBuffer(buffer: Buffer, compression: CompressionType): Buffer {
   switch (compression) {
     case CompressionType.ZLIB:
-      return unzipSync(buffer);
+      return decompressZlib(buffer);
     case CompressionType.InternalCompression:
       return internalDecompression(buffer)
     case CompressionType.Uncompressed:
@@ -19,6 +19,33 @@ export default function decompressBuffer(buffer: Buffer, compression: Compressio
       return buffer;
     default:
       throw new Error(`Decompressing "${compression} (${CompressionType[compression]})" is not supported.`);
+  }
+}
+
+/**
+ * Decompresses ZLIB data with buffer validation to handle "unexpected end of file" errors.
+ * Uses inflateSync to match deflateSync used in compression for consistent ZLIB format.
+ * 
+ * @param buffer Buffer to decompress
+ */
+function decompressZlib(buffer: Buffer): Buffer {
+  // Validate buffer
+  if (!buffer || buffer.length === 0) {
+    throw new Error("Cannot decompress empty or null buffer");
+  }
+
+  // Check for minimum size
+  if (buffer.length < 2) {
+    throw new Error("Buffer too small to contain valid compressed data");
+  }
+
+  try {
+    return inflateSync(buffer);
+  } catch (error) {
+    // Provide more detailed error information for debugging
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const bufferInfo = `Buffer length: ${buffer.length}, First bytes: ${buffer.slice(0, Math.min(8, buffer.length)).toString('hex')}`;
+    throw new Error(`ZLIB decompression failed: ${errorMsg}. ${bufferInfo}. Please check if the buffer contains only compressed data without headers or trailing data.`);
   }
 }
 
