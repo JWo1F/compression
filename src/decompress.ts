@@ -135,8 +135,13 @@ function decompressLargeZlib(buffer: Buffer): Buffer {
   inflate.write(buffer);
   inflate.end();
   
-  // Synchronously wait for completion
-  require('child_process').spawnSync('sleep', ['0']);
+  // Busy wait for completion
+  const start = Date.now();
+  while (!finished && !error && (Date.now() - start) < 30000) {
+    // Busy wait with tiny delay
+    const now = Date.now();
+    while (Date.now() - now < 1) {}
+  }
   
   if (error) {
     throw error;
