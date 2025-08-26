@@ -1,4 +1,4 @@
-import { deflateRawSync } from "zlib";
+import { deflateSync } from "zlib";
 import CompressionType from "./compression-type";
 
 /**
@@ -10,7 +10,7 @@ import CompressionType from "./compression-type";
 export default function compressBuffer(buffer: Buffer, compression: CompressionType): Buffer {
   switch (compression) {
     case CompressionType.ZLIB:
-      return deflateRawSync(buffer);
+      return deflateSync(buffer);
     case CompressionType.Uncompressed:
       // fallthrough
     case CompressionType.DeletedRecord:

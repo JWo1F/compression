@@ -1,4 +1,4 @@
-import { inflateRawSync } from "zlib";
+import { inflateSync } from "zlib";
 import CompressionType from "./compression-type";
 
 /**
@@ -10,7 +10,7 @@ import CompressionType from "./compression-type";
 export default function decompressBuffer(buffer: Buffer, compression: CompressionType): Buffer {
   switch (compression) {
     case CompressionType.ZLIB:
-      return inflateRawSync(buffer);
+      return inflateSync(buffer);
     case CompressionType.InternalCompression:
       return internalDecompression(buffer)
     case CompressionType.Uncompressed:

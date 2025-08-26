@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { deflateRawSync } from "zlib";
+import { deflateSync } from "zlib";
 import { compressBuffer, CompressionType } from "../dst/api";
 
 describe("compressBuffer", () => {
@@ -18,7 +18,7 @@ describe("compressBuffer", () => {
   it("should compress with ZLIB if type == ZLIB", () => {
     const buffer = Buffer.from("hello world");
     const compressed = compressBuffer(buffer, CompressionType.ZLIB);
-    const compressedZlib = deflateRawSync(buffer);
+    const compressedZlib = deflateSync(buffer);
     expect(buffer.toString()).to.not.equal(compressed.toString());
     expect(compressed.toString()).to.equal(compressedZlib.toString());
   });
