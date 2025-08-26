@@ -1,4 +1,4 @@
-import { inflateSync, inflateRawSync, unzipSync } from "zlib";
+import { inflateSync } from "zlib";
 import CompressionType from "./compression-type";
 
 /**
@@ -23,28 +23,29 @@ export default function decompressBuffer(buffer: Buffer, compression: Compressio
 }
 
 /**
- * Tries multiple decompression methods for ZLIB data to handle various formats
- * that might be used by Sims 4 packages.
+ * Decompresses ZLIB data with buffer validation to handle "unexpected end of file" errors.
+ * Uses inflateSync to match deflateSync used in compression for consistent ZLIB format.
  * 
  * @param buffer Buffer to decompress
  */
 function decompressZlib(buffer: Buffer): Buffer {
-  // Try standard ZLIB format first (deflateSync/inflateSync)
+  // Validate buffer
+  if (!buffer || buffer.length === 0) {
+    throw new Error("Cannot decompress empty or null buffer");
+  }
+
+  // Check for minimum size
+  if (buffer.length < 2) {
+    throw new Error("Buffer too small to contain valid compressed data");
+  }
+
   try {
     return inflateSync(buffer);
-  } catch (e) {
-    // If standard ZLIB fails, try raw DEFLATE format
-    try {
-      return inflateRawSync(buffer);
-    } catch (e2) {
-      // If raw DEFLATE fails, try GZIP format (for backward compatibility)
-      try {
-        return unzipSync(buffer);
-      } catch (e3) {
-        // If all methods fail, throw the original ZLIB error
-        throw e;
-      }
-    }
+  } catch (error) {
+    // Provide more detailed error information for debugging
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const bufferInfo = `Buffer length: ${buffer.length}, First bytes: ${buffer.slice(0, Math.min(8, buffer.length)).toString('hex')}`;
+    throw new Error(`ZLIB decompression failed: ${errorMsg}. ${bufferInfo}. Please check if the buffer contains only compressed data without headers or trailing data.`);
   }
 }
 

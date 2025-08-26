@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { deflateSync, deflateRawSync, gzipSync } from "zlib";
+import { deflateSync } from "zlib";
 import { decompressBuffer, CompressionType } from "../dst/api";
 
 describe("decompressBuffer", () => {
@@ -32,20 +32,22 @@ describe("decompressBuffer", () => {
     expect(decompressed.length).to.equal(Buffer.from(largeText).length);
   });
 
-  it("should handle raw DEFLATE format as fallback", () => {
-    // Test fallback to raw DEFLATE format
-    const text = "hello world from raw deflate";
-    const compressed = deflateRawSync(Buffer.from(text));
-    const decompressed = decompressBuffer(compressed, CompressionType.ZLIB);
-    expect(decompressed.toString()).to.equal(text);
+  it("should provide helpful error message for invalid buffer", () => {
+    const invalidBuffer = Buffer.from("not compressed data");
+    expect(() => decompressBuffer(invalidBuffer, CompressionType.ZLIB))
+      .to.throw(/ZLIB decompression failed.*Buffer length.*First bytes/);
   });
 
-  it("should handle GZIP format as fallback", () => {
-    // Test fallback to GZIP format (for backward compatibility)
-    const text = "hello world from gzip";
-    const compressed = gzipSync(Buffer.from(text));
-    const decompressed = decompressBuffer(compressed, CompressionType.ZLIB);
-    expect(decompressed.toString()).to.equal(text);
+  it("should reject empty buffer", () => {
+    const emptyBuffer = Buffer.alloc(0);
+    expect(() => decompressBuffer(emptyBuffer, CompressionType.ZLIB))
+      .to.throw("Cannot decompress empty or null buffer");
+  });
+
+  it("should reject buffer that's too small", () => {
+    const tinyBuffer = Buffer.from([0x01]);
+    expect(() => decompressBuffer(tinyBuffer, CompressionType.ZLIB))
+      .to.throw("Buffer too small to contain valid compressed data");
   });
 
   it("should decompress internal compression if type == InternalCompression", () => {
