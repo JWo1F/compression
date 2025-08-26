@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { deflateSync } from "zlib";
+import { deflateSync, deflateRawSync, gzipSync } from "zlib";
 import { decompressBuffer, CompressionType } from "../dst/api";
 
 describe("decompressBuffer", () => {
@@ -30,6 +30,22 @@ describe("decompressBuffer", () => {
     const decompressed = decompressBuffer(compressed, CompressionType.ZLIB);
     expect(decompressed.toString()).to.equal(largeText);
     expect(decompressed.length).to.equal(Buffer.from(largeText).length);
+  });
+
+  it("should handle raw DEFLATE format as fallback", () => {
+    // Test fallback to raw DEFLATE format
+    const text = "hello world from raw deflate";
+    const compressed = deflateRawSync(Buffer.from(text));
+    const decompressed = decompressBuffer(compressed, CompressionType.ZLIB);
+    expect(decompressed.toString()).to.equal(text);
+  });
+
+  it("should handle GZIP format as fallback", () => {
+    // Test fallback to GZIP format (for backward compatibility)
+    const text = "hello world from gzip";
+    const compressed = gzipSync(Buffer.from(text));
+    const decompressed = decompressBuffer(compressed, CompressionType.ZLIB);
+    expect(decompressed.toString()).to.equal(text);
   });
 
   it("should decompress internal compression if type == InternalCompression", () => {

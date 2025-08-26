@@ -1,4 +1,4 @@
-import { inflateSync } from "zlib";
+import { inflateSync, inflateRawSync, unzipSync } from "zlib";
 import CompressionType from "./compression-type";
 
 /**
@@ -10,7 +10,7 @@ import CompressionType from "./compression-type";
 export default function decompressBuffer(buffer: Buffer, compression: CompressionType): Buffer {
   switch (compression) {
     case CompressionType.ZLIB:
-      return inflateSync(buffer);
+      return decompressZlib(buffer);
     case CompressionType.InternalCompression:
       return internalDecompression(buffer)
     case CompressionType.Uncompressed:
@@ -19,6 +19,32 @@ export default function decompressBuffer(buffer: Buffer, compression: Compressio
       return buffer;
     default:
       throw new Error(`Decompressing "${compression} (${CompressionType[compression]})" is not supported.`);
+  }
+}
+
+/**
+ * Tries multiple decompression methods for ZLIB data to handle various formats
+ * that might be used by Sims 4 packages.
+ * 
+ * @param buffer Buffer to decompress
+ */
+function decompressZlib(buffer: Buffer): Buffer {
+  // Try standard ZLIB format first (deflateSync/inflateSync)
+  try {
+    return inflateSync(buffer);
+  } catch (e) {
+    // If standard ZLIB fails, try raw DEFLATE format
+    try {
+      return inflateRawSync(buffer);
+    } catch (e2) {
+      // If raw DEFLATE fails, try GZIP format (for backward compatibility)
+      try {
+        return unzipSync(buffer);
+      } catch (e3) {
+        // If all methods fail, throw the original ZLIB error
+        throw e;
+      }
+    }
   }
 }
 
