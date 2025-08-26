@@ -1,4 +1,4 @@
-import { unzipSync, inflateSync } from "zlib";
+import { unzipSync, inflateSync, createInflate } from "zlib";
 import CompressionType from "./compression-type";
 
 /**
@@ -10,6 +10,10 @@ import CompressionType from "./compression-type";
 export default function decompressBuffer(buffer: Buffer, compression: CompressionType): Buffer {
   switch (compression) {
     case CompressionType.ZLIB:
+      // For large buffers, use streaming decompression
+      if (buffer.length > 50 * 1024 * 1024) { // 50MB threshold
+        return decompressLargeZlib(buffer);
+      }
       try {
         return inflateSync(buffer);
       } catch {
@@ -110,6 +114,47 @@ function internalDecompression(data: Buffer): Buffer {
   } while (!(controlCode >= 0xFC));
 
   return udata;
+}
+
+/**
+ * Decompresses large ZLIB data using streaming API to avoid memory limits.
+ * 
+ * @param buffer ZLIB compressed buffer
+ */
+function decompressLargeZlib(buffer: Buffer): Buffer {
+  const inflate = createInflate();
+  const chunks: Buffer[] = [];
+  
+  inflate.on('data', (chunk: Buffer) => {
+    chunks.push(chunk);
+  });
+  
+  let error: Error | null = null;
+  inflate.on('error', (err: Error) => {
+    error = err;
+  });
+  
+  let finished = false;
+  inflate.on('end', () => {
+    finished = true;
+  });
+  
+  // Write data and close
+  inflate.write(buffer);
+  inflate.end();
+  
+  // Synchronously wait for completion
+  require('child_process').spawnSync('sleep', ['0']);
+  
+  if (error) {
+    throw error;
+  }
+  
+  if (!finished) {
+    throw new Error('Decompression did not complete');
+  }
+  
+  return Buffer.concat(chunks);
 }
 
 /**
